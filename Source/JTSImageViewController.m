@@ -25,7 +25,7 @@ CG_INLINE CGFLOAT_TYPE JTSImageFloatAbs(CGFLOAT_TYPE aFloat) {
 ///--------------------------------------------------------------------------------------------------------------------
 
 // Public Constants
-CGFloat const JTSImageViewController_DefaultAlphaForBackgroundDimmingOverlay = 0.66f;
+CGFloat const JTSImageViewController_DefaultAlphaForBackgroundDimmingOverlay = 0.8f;
 CGFloat const JTSImageViewController_DefaultBackgroundBlurRadius = 2.0f;
 
 // Private Constants
@@ -776,8 +776,11 @@ typedef struct {
         self.scrollView.alpha = 0;
         self.scrollView.frame = self.view.bounds;
         [self updateScrollViewAndImageViewForCurrentMetrics];
-        CGFloat scaling = JTSImageViewController_MaxScalingForExpandingOffscreenStyleTransition;
-        self.scrollView.transform = CGAffineTransformMakeScale(scaling, scaling);
+        
+        if (_imageInfo.shouldBounceWhenPresenting) {
+            CGFloat scaling = JTSImageViewController_MaxScalingForExpandingOffscreenStyleTransition;
+            self.scrollView.transform = CGAffineTransformMakeScale(scaling, scaling);
+        }
         
         CGFloat duration = JTSImageViewController_TransitionAnimationDuration;
         if (USE_DEBUG_SLOW_ANIMATIONS == 1) {
