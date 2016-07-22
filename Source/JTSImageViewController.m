@@ -624,16 +624,6 @@ typedef struct {
             self.imageView.center = centerInRect;
         }
         
-        if ([self.optionsDelegate respondsToSelector:@selector(imageViewerShouldFadeThumbnailsDuringPresentationAndDismissal:)]) {
-            if ([self.optionsDelegate imageViewerShouldFadeThumbnailsDuringPresentationAndDismissal:self]) {
-                self.imageView.alpha = 0;
-                typeof(self) __weak weakSelf = self;
-                [UIView animateWithDuration:0.15f animations:^{
-                    weakSelf.imageView.alpha = 1;
-                }];
-            }
-        }
-        
         CGFloat duration = JTSImageViewController_TransitionAnimationDuration;
         if (USE_DEBUG_SLOW_ANIMATIONS == 1) {
             duration *= 4;
