@@ -451,11 +451,7 @@ typedef struct {
     self.imageView.isAccessibilityElement = NO;
     self.imageView.clipsToBounds = YES;
     self.imageView.layer.allowsEdgeAntialiasing = YES;
-    if ([self.optionsDelegate respondsToSelector:@selector(imageViewerShouldFadeThumbnailsDuringPresentationAndDismissal:)]) {
-        if ([self.optionsDelegate imageViewerShouldFadeThumbnailsDuringPresentationAndDismissal:self]) {
-            self.imageView.alpha = 0;
-        }
-    }
+    self.imageView.alpha = 0;
     
     // We'll add the image view to either the scroll view
     // or the parent view, based on the transition style
@@ -997,13 +993,9 @@ typedef struct {
     _flags.isAnimatingAPresentationOrDismissal = YES;
     _flags.isDismissing = YES;
     
-    if ([self.optionsDelegate respondsToSelector:@selector(imageViewerShouldFadeThumbnailsDuringPresentationAndDismissal:)]) {
-        if ([self.optionsDelegate imageViewerShouldFadeThumbnailsDuringPresentationAndDismissal:self]) {
-            [UIView animateWithDuration:0.15 delay:0.18 options:0 animations:^{
-                self.imageView.alpha = 0;
-            } completion:nil];
-        }
-    }
+    [UIView animateWithDuration:0.15 delay:0.18 options:0 animations:^{
+        self.imageView.alpha = 0;
+    } completion:nil];
     
     CGRect imageFrame = [self.view convertRect:self.imageView.frame fromView:self.scrollView];
     self.imageView.autoresizingMask = UIViewAutoresizingNone;

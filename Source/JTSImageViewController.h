@@ -116,16 +116,6 @@ extern CGFloat const JTSImageViewController_DefaultBackgroundBlurRadius;
 @optional
 
 /**
- Return YES if you want the image thumbnail to fade to/from zero during presentation
- and dismissal animations.
- 
- This may be helpful if the reference image in your presenting view controller has been
- dimmed, such as for a dark mode. JTSImageViewController otherwise presents the animated 
- image view at full opacity, which can look jarring.
- */
-- (BOOL)imageViewerShouldFadeThumbnailsDuringPresentationAndDismissal:(JTSImageViewController *)imageViewer;
-
-/**
  The font used in the alt text mode's text view.
  
  This method is only used with `JTSImageViewControllerMode_AltText`.
