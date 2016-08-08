@@ -660,6 +660,8 @@ typedef struct {
                  options:UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionCurveEaseInOut
                  animations:^{
                      
+                     weakSelf.imageView.alpha = 1;
+                    
                      if ([weakSelf.animationDelegate respondsToSelector:@selector(imageViewerWillAnimatePresentation:withContainerView:duration:)]) {
                          [weakSelf.animationDelegate imageViewerWillAnimatePresentation:weakSelf withContainerView:weakSelf.view duration:duration];
                      }
