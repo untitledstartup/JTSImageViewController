@@ -20,7 +20,7 @@
 @property (strong, nonatomic) UIView *referenceView;
 @property (assign, nonatomic) UIViewContentMode referenceContentMode;
 @property (assign, nonatomic) CGFloat referenceCornerRadius;
-@property (copy, nonatomic) NSMutableDictionary *userInfo;
+@property (strong, nonatomic) NSMutableDictionary *userInfo;
 @property (assign, nonatomic) BOOL shouldBounceWhenPresenting;
 
 
