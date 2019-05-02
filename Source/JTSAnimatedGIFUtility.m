@@ -10,6 +10,11 @@
 
 @import ImageIO;
 
+// MN-4608: OK. the original author of JTS, Jared, copied and pasted this
+// repo: https://github.com/mayoff/uiimage-from-animated-gif
+// And, never mentioned about it! Obviously he hasn't updated gif related code since the first copy.
+// The gif animation bug is fixed by importing a code snippet from the original repo.
+
 #if __has_feature(objc_arc)
 #define toCF (__bridge CFTypeRef)
 #define fromCF (__bridge id)
@@ -29,14 +34,17 @@ static int delayCentisecondsForImageAtIndex(CGImageSourceRef const source, size_
     CFDictionaryRef const properties = CGImageSourceCopyPropertiesAtIndex(source, i, NULL);
     if (properties) {
         CFDictionaryRef const gifProperties = CFDictionaryGetValue(properties, kCGImagePropertyGIFDictionary);
-        CFRelease(properties);
         if (gifProperties) {
-            // kCGImagePropertyGIFUnclampedDelayTime appears to be what should be used instead of kCGImagePropertyGIFDelayTime JG 5/1/2013
-            CFNumberRef const number = CFDictionaryGetValue(gifProperties, kCGImagePropertyGIFUnclampedDelayTime);
-            
-            // Even though the GIF stores the delay as an integer number of centiseconds, ImageIO “helpfully” converts that to seconds for us.
-            delayCentiseconds = (int)lrint([fromCF number doubleValue] * 100.0);
+            NSNumber *number = fromCF CFDictionaryGetValue(gifProperties, kCGImagePropertyGIFUnclampedDelayTime);
+            if (number == NULL || [number doubleValue] == 0) {
+                number = fromCF CFDictionaryGetValue(gifProperties, kCGImagePropertyGIFDelayTime);
+            }
+            if ([number doubleValue] > 0) {
+                // Even though the GIF stores the delay as an integer number of centiseconds, ImageIO “helpfully” converts that to seconds for us.
+                delayCentiseconds = (int)lrint([number doubleValue] * 100);
+            }
         }
+        CFRelease(properties);
     }
     return delayCentiseconds;
 }
