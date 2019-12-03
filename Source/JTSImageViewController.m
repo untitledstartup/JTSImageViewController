@@ -6,9 +6,9 @@
 //  Copyright (c) 2014 Nice Boy LLC. All rights reserved.
 //
 
-#import "JTSImageViewController.h"
+@import SDWebImage;
 
-#import "JTSSimpleImageDownloader.h"
+#import "JTSImageViewController.h"
 #import "UIImage+JTSImageEffects.h"
 #import "UIApplication+JTSImageViewController.h"
 
@@ -94,7 +94,7 @@ typedef struct {
 @property (strong, nonatomic) UIView *snapshotView;
 @property (strong, nonatomic) UIView *blurredSnapshotView;
 @property (strong, nonatomic) UIView *blackBackdrop;
-@property (strong, nonatomic) UIImageView *imageView;
+@property (strong, nonatomic) SDAnimatedImageView *imageView;
 @property (strong, nonatomic) UIScrollView *scrollView;
 @property (strong, nonatomic) UITextView *textView;
 @property (strong, nonatomic) UIProgressView *progressView;
@@ -113,10 +113,6 @@ typedef struct {
 @property (assign, nonatomic) CGPoint imageDragStartingPoint;
 @property (assign, nonatomic) UIOffset imageDragOffsetFromActualTranslation;
 @property (assign, nonatomic) UIOffset imageDragOffsetFromImageCenter;
-
-// Image Downloading
-@property (strong, nonatomic) NSURLSessionDataTask *imageDownloadDataTask;
-@property (strong, nonatomic) NSTimer *downloadProgressTimer;
 
 @end
 
@@ -139,9 +135,6 @@ typedef struct {
         _currentSnapshotRotationTransform = CGAffineTransformIdentity;
         _mode = mode;
         _backgroundOptions = backgroundOptions;
-        if (_mode == JTSImageViewControllerMode_Image) {
-            [self setupImageAndDownloadIfNecessary:imageInfo];
-        }
     }
     return self;
 }
@@ -203,8 +196,6 @@ typedef struct {
 
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self name:UIDeviceOrientationDidChangeNotification object:nil];
-    [_imageDownloadDataTask cancel];
-    [self cancelProgressTimer];
 }
 
 #pragma mark - UIViewController
@@ -284,6 +275,7 @@ typedef struct {
     [super viewDidLoad];
     if (self.mode == JTSImageViewControllerMode_Image) {
         [self viewDidLoadForImageMode];
+        [self setupImageAndDownloadIfNecessary:self.imageInfo];
     }
     else if (self.mode == JTSImageViewControllerMode_AltText) {
         [self viewDidLoadForAltTextMode];
@@ -373,18 +365,31 @@ typedef struct {
 - (void)setupImageAndDownloadIfNecessary:(JTSImageInfo *)imageInfo {
     if (imageInfo.image) {
         self.image = imageInfo.image;
-    }
-    else {
-        
-        self.image = imageInfo.placeholderImage;
-        
+    } else {
         BOOL fromDisk = [imageInfo.imageURL.absoluteString hasPrefix:@"file://"];
         _flags.imageIsBeingReadFromDisk = fromDisk;
-        
+
         typeof(self) __weak weakSelf = self;
-        NSURLSessionDataTask *task = [JTSSimpleImageDownloader downloadImageForURL:imageInfo.imageURL canonicalURL:imageInfo.canonicalImageURL completion:^(UIImage *image) {
+
+        [_imageView sd_setImageWithURL:imageInfo.imageURL placeholderImage:imageInfo.image options:SDWebImageMatchAnimatedImageClass
+                              progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
             typeof(self) strongSelf = weakSelf;
-            [strongSelf cancelProgressTimer];
+            float progress = 0;
+            if (expectedSize > 0 && strongSelf->_flags.imageIsBeingReadFromDisk == NO) {
+                dispatch_sync(dispatch_get_main_queue(), ^{
+                    [UIView animateWithDuration:0.25 delay:0 options:UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionCurveLinear animations:^{
+                        strongSelf.spinner.alpha = 0;
+                        strongSelf.progressView.alpha = 1;
+                    } completion:nil];
+                });
+                progress = (float)receivedSize / (float)expectedSize;
+            }
+            dispatch_sync(dispatch_get_main_queue(), ^{
+                self.progressView.progress = (float)progress;
+            });
+        } completed:^(UIImage * _Nullable image, NSError * _Nullable error, SDImageCacheType cacheType, NSURL * _Nullable imageURL) {
+            typeof(self) strongSelf = weakSelf;
+
             if (image) {
                 if (strongSelf.isViewLoaded) {
                     [strongSelf updateInterfaceWithImage:image];
@@ -399,10 +404,6 @@ typedef struct {
                 // If we're still presenting, at the end of presentation we'll auto dismiss.
             }
         }];
-        
-        self.imageDownloadDataTask = task;
-        
-        [self startProgressTimer];
     }
 }
 
@@ -429,7 +430,7 @@ typedef struct {
     CGRect referenceFrameInWindow = [self.imageInfo.referenceView convertRect:self.imageInfo.referenceRect toView:nil];
     CGRect referenceFrameInMyView = [self.view convertRect:referenceFrameInWindow fromView:nil];
     
-    self.imageView = [[UIImageView alloc] initWithFrame:referenceFrameInMyView];
+    self.imageView = [[SDAnimatedImageView alloc] initWithFrame:referenceFrameInMyView];
     self.imageView.layer.cornerRadius = self.imageInfo.referenceCornerRadius;
     self.imageView.contentMode = UIViewContentModeScaleAspectFill;
     self.imageView.userInteractionEnabled = YES;
@@ -469,6 +470,13 @@ typedef struct {
     if (self.image) {
         [self updateInterfaceWithImage:self.image];
     }
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
+    float progress = [change[NSKeyValueChangeNewKey] floatValue];
+    dispatch_main_async_safe(^{ // progress value updated in background queue
+        [self.progressView setProgress:progress animated:YES]; // update UI
+    });
 }
 
 - (void)viewDidLoadForAltTextMode {
@@ -1794,36 +1802,6 @@ typedef struct {
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRequireFailureOfGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
     return (gestureRecognizer == self.singleTapperText);
-}
-
-#pragma mark - Progress Bar
-
-- (void)startProgressTimer {
-    self.downloadProgressTimer = [[NSTimer alloc] initWithFireDate:[NSDate date]
-                                                          interval:0.05
-                                                            target:self
-                                                          selector:@selector(progressTimerFired:)
-                                                          userInfo:nil
-                                                           repeats:YES];
-    [[NSRunLoop mainRunLoop] addTimer:self.downloadProgressTimer forMode:NSRunLoopCommonModes];
-}
-
-- (void)cancelProgressTimer {
-    [self.downloadProgressTimer invalidate];
-    self.downloadProgressTimer = nil;
-}
-
-- (void)progressTimerFired:(NSTimer *)timer {
-    CGFloat progress = 0;
-    CGFloat bytesExpected = self.imageDownloadDataTask.countOfBytesExpectedToReceive;
-    if (bytesExpected > 0 && _flags.imageIsBeingReadFromDisk == NO) {
-        [UIView animateWithDuration:0.25 delay:0 options:UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionCurveLinear animations:^{
-            self.spinner.alpha = 0;
-            self.progressView.alpha = 1;
-        } completion:nil];
-        progress = self.imageDownloadDataTask.countOfBytesReceived / bytesExpected;
-    }
-    self.progressView.progress = (float)progress;
 }
 
 #pragma mark - UIResponder
