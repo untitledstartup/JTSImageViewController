@@ -1630,9 +1630,8 @@ typedef struct {
         if (allowCopy) {
             CGPoint location = [sender locationInView:self.imageView];
             UIMenuController *menuController = [UIMenuController sharedMenuController];
-            
-            [menuController setTargetRect:CGRectMake(location.x, location.y, 0.0f, 0.0f) inView:self.imageView];
-            [menuController setMenuVisible:YES animated:YES];
+
+            [menuController showMenuFromView:self.imageView rect:CGRectMake(location.x, location.y, 0.0f, 0.0f)];
         }
     }
 }
