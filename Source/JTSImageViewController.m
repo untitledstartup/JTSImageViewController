@@ -1631,7 +1631,12 @@ typedef struct {
             CGPoint location = [sender locationInView:self.imageView];
             UIMenuController *menuController = [UIMenuController sharedMenuController];
 
-            [menuController showMenuFromView:self.imageView rect:CGRectMake(location.x, location.y, 0.0f, 0.0f)];
+            if (@available(iOS 13.0, *)) {
+                [menuController showMenuFromView:self.imageView rect:CGRectMake(location.x, location.y, 0.0f, 0.0f)];
+            } else {
+                [menuController setTargetRect:CGRectMake(location.x, location.y, 0.0f, 0.0f) inView:self.imageView];
+                [menuController setMenuVisible:YES animated:YES];
+            }
         }
     }
 }

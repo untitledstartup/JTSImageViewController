@@ -92,7 +92,7 @@ extern CGFloat const JTSImageViewController_DefaultBackgroundBlurRadius;
  Dismisses the image viewer. Must not be called while previous presentation or dismissal is still in flight.
  */
 - (void)dismiss:(BOOL)animated;
-
+- (void)updateInterfaceWithImage:(UIImage *)image;
 @end
 
 ///--------------------------------------------------------------------------------------------------------------------
